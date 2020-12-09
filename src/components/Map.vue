@@ -17,6 +17,7 @@ import Feature from 'ol/Feature';
 import {
   Circle as CircleStyle, Fill, Stroke, Style,
 } from 'ol/style';
+import Point from 'ol/geom/Point';
 // import { Tile as TileLayer } from 'ol/layer';
 // import { XYZ } from 'ol/source';
 
@@ -28,11 +29,14 @@ export default {
       vectorLayer: null,
       view: null,
       map: null,
-      geoLocation: null,
+      geolocation: null,
     };
   },
   async mounted() {
     await this.initiateMap();
+  },
+  created() {
+    this.$store.dispatch('getTrobls');
   },
   methods: {
     initiateMap() {
@@ -44,6 +48,32 @@ export default {
         maxZoom: 19,
         minZoom: 7,
       });
+      this.geolocation = new Geolocation({
+        trackingOptions: { enableHighAccuracy: true },
+        projection: this.view.getProjection(),
+      });
+      this.geolocation.setTracking(true);
+      const positionFeature = new Feature();
+      this.geolocation.on('change:position', () => {
+        const coordinates = this.geolocation.getPosition();
+        positionFeature.setGeometry(coordinates ? new Point(coordinates) : null);
+      });
+      // eslint-disable-next-line no-console
+      console.log(this.geolocation.getPosition());
+      console.log(this.geolocation);
+      // this.view.setCenter([this.geolocation.getPosition()]);
+      positionFeature.setStyle(new Style({
+        image: new CircleStyle({
+          radius: 6,
+          fill: new Fill({
+            color: '#3399CC',
+          }),
+          stroke: new Stroke({
+            color: '#fff',
+            width: 2,
+          }),
+        }),
+      }));
       this.map = new Map({
         controls: defaults().extend([
           new ScaleLine({ units: 'degrees' }),
@@ -58,29 +88,16 @@ export default {
           new VectorLayer(
             { source: new VectorSource() },
           ),
+          new VectorLayer({
+            map: this.map,
+            source: new VectorSource({
+              features: [positionFeature],
+            }),
+          }),
         ],
         target: 'mapOL',
         view: this.view,
       });
-      this.geoLocation = new Geolocation({
-        trackingOptions: { enableHighAccuracy: true, },
-        projection: this.view.getProjection(),
-      });
-      this.geoLocation.setTracking(true);
-      const positionFeature = new Feature();
-
-      positionFeature.setStylr(new Style({
-        image: new CircleStyle({
-          radius: 6,
-          fill: new Fill({
-            color: '#3399CC',
-          }),
-          stroke: new Stroke({
-            color: '#fff',
-            width: 2,
-          }),
-        }),
-      }));
     },
   },
 };
